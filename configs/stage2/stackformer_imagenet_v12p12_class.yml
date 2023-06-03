@@ -1,0 +1,117 @@
+model:
+  learning_rate: 0.0005
+  min_learning_rate: 0.0
+  target: models.stage2_masked.stackformer_class.ClassTransformer
+  params:
+    monitor: val_loss
+    weight_decay: 0.01
+    warmup_epochs: 0
+
+    position_value_permuter_config:
+        target: modules.masked_quantization_stage2.permuter.raster_scan_permuter
+      
+    transformer_config:
+      target: modules.masked_quantization_stage2.stackedgpt.ReverseStackedPositionGPT
+      params:
+        vocab_size: 2024 # 1024 + 1000
+        position_size: 1025  # 1 + 32x32
+        block_size: 1024 # large enough 
+        position_layer: 12
+        value_layer: 12
+        n_head: 16
+        n_embd: 1024
+        embd_pdrop: 0.1
+        resid_pdrop: 0.1
+        attn_pdrop: 0.1
+        add_absolute_position: true
+
+    first_stage_config:
+      target: models.stage1_masked.mqvae.MaskedVectorQuantizationModel
+      params:
+        ckpt_path: "Your ckpt path"
+        encoder_config:
+          target: modules.diffusionmodules.model.Encoder
+          params:
+            double_z: false
+            z_channels: 256
+            resolution: 256
+            in_channels: 3
+            out_ch: 3
+            ch: 128
+            ch_mult: [1, 1, 2, 2]
+            num_res_blocks: 2
+            attn_resolutions: [32]
+            dropout: 0.0
+        decoder_config:
+          target: modules.masked_quantization.decoder.Decoder
+          params:
+            ch: 128
+            in_ch: 256
+            out_ch: 3
+            ch_mult: [1, 1, 2, 2]
+            num_res_blocks: 2
+            resolution: 256
+            attn_resolutions: [32]
+            dropout: 0.0
+            resamp_with_conv: true
+            give_pre_end: false
+        masker_config:
+          target: modules.masked_quantization.masker_vanilla_refine.VanillaMasker
+          params:
+            topk_ratio: 0.25
+            input_token_num: 1024
+            input_dim: 256
+            patch_size: 8
+            score_pred_net_mode: 2layer
+            codebook_dim: 256
+        demasker_config:
+          target: modules.masked_quantization.demasker_vanilla.VanillaDemasker
+          params:
+            output_dim: 256
+            codebook_dim: 256
+            height_and_width: 32
+            n_layer: 8
+            mask_init_value: 0.02
+        vqconfig:
+          target: modules.vector_quantization.quantize2.VectorQuantize2
+          params:
+            codebook_size: 1024
+            codebook_dim: 256
+            channel_last: false
+            accept_image_fmap: false
+            commitment_beta: 0.25
+            decay: 0.99
+            restart_unused_codes: true
+            commit_loss_legacy: true
+        lossconfig:
+          target: modules.losses.vqperceptual.DummyLoss
+    
+    ignore_keys: []
+    first_stage_key: image
+    cond_stage_key: class_label
+    pkeep: 1.0
+    n_classes: 1000
+    sos_pos_token: 1024
+    loss_position_weight: 1.0
+
+    height_and_weight: 32
+    add_absolute_position: True
+
+
+data:
+  target: data.build.DataModuleFromConfig
+  params:
+    batch_size: 4 # 30
+    num_workers: 8
+    train:
+      target: data.imagenet.ImageNetTrain
+      params:
+        config:
+          is_eval: False
+          size: 256
+    validation:
+      target: data.imagenet.ImageNetValidation
+      params:
+        config:
+          is_eval: True
+          size: 256
