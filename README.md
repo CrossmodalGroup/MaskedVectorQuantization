@@ -1,4 +1,4 @@
-# MaskedVectorQuantization
+# MaskedVectorQuantization (CVPR2023)
 
 Offical PyTorch implementation of our CVPR2023 paper "[Not All Image Regions Matter: Masked Vector Quantization for Autoregressive Image Generation](https://openaccess.thecvf.com/content/CVPR2023/papers/Huang_Not_All_Image_Regions_Matter_Masked_Vector_Quantization_for_Autoregressive_CVPR_2023_paper.pdf)".
 
