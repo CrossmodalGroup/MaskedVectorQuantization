@@ -75,7 +75,7 @@ model:
 data:
   target: data.build.DataModuleFromConfig
   params:
-    batch_size: 16 # 30
+    batch_size: 4 # 30
     num_workers: 8
     train:
       target: data.imagenet.ImageNetTrain
